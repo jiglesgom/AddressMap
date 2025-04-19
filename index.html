@@ -22,6 +22,11 @@
 
   <div id="map"></div>
 
+  <!-- Añade después del mapa -->
+<h3>Direcciones Seleccionadas</h3>
+<textarea id="selectedList" rows="5" readonly></textarea>
+<button onclick="copySelected()">Copiar al portapapeles</button>
+
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
     const map = L.map('map').setView([40.4168, -3.7038], 5); // España por defecto
@@ -35,35 +40,65 @@
       return data.length > 0 ? [parseFloat(data[0].lat), parseFloat(data[0].lon)] : null;
     }
 
-    async function geolocate() {
-      map.eachLayer(layer => {
-        if (layer instanceof L.Marker) map.removeLayer(layer);
-      });
+ 
+    // Reemplaza tu función geolocate y añade nuevas utilidades
+let selectedAddresses = [];
 
-      const addressList = document.getElementById('addresses').value.split('\n').map(l => l.trim()).filter(l => l !== '');
-      const special = document.getElementById('special').value.trim();
+function updateSelectedList() {
+  const area = document.getElementById('selectedList');
+  area.value = selectedAddresses.join('\n');
+}
 
-      // Geocodificar direcciones normales
-      for (let addr of addressList) {
-        const coords = await geocode(addr);
-        if (coords) {
-          L.marker(coords, { icon: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' }) })
-            .addTo(map)
-            .bindPopup(addr);
-        }
-      }
+function toggleSelection(marker, address) {
+  if (selectedAddresses.includes(address)) {
+    selectedAddresses = selectedAddresses.filter(a => a !== address);
+    marker.setIcon(L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' }));
+  } else {
+    selectedAddresses.push(address);
+    marker.setIcon(L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png' }));
+  }
+  updateSelectedList();
+}
 
-      // Geocodificar dirección especial
-      if (special) {
-        const coords = await geocode(special);
-        if (coords) {
-          L.marker(coords, { icon: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' }) })
-            .addTo(map)
-            .bindPopup("Dirección especial: " + special);
-          map.setView(coords, 13);
-        }
-      }
+async function geolocate() {
+  selectedAddresses = [];
+  updateSelectedList();
+
+  map.eachLayer(layer => {
+    if (layer instanceof L.Marker) map.removeLayer(layer);
+  });
+
+  const addressList = document.getElementById('addresses').value.split('\n').map(l => l.trim()).filter(l => l !== '');
+  const special = document.getElementById('special').value.trim();
+
+  for (let addr of addressList) {
+    const coords = await geocode(addr);
+    if (coords) {
+      const marker = L.marker(coords, {
+        icon: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' })
+      }).addTo(map).bindPopup(addr);
+
+      marker.on('click', () => toggleSelection(marker, addr));
     }
+  }
+
+  if (special) {
+    const coords = await geocode(special);
+    if (coords) {
+      L.marker(coords, {
+        icon: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' })
+      }).addTo(map).bindPopup("Dirección especial: " + special);
+      map.setView(coords, 13);
+    }
+  }
+}
+
+function copySelected() {
+  const textarea = document.getElementById('selectedList');
+  textarea.select();
+  document.execCommand('copy');
+  alert("Direcciones copiadas al portapapeles");
+}
   </script>
 </body>
 </html>
